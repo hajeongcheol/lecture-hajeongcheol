@@ -239,6 +239,12 @@ python alert_web.py
 
 cd gateway
 mvn spring-boot:run
+
+cd schedule
+mvn spring-boot:run
+
+cd mypage
+mvn spring-boot:run
 ```
 
 - 아래 부터는 AWS 클라우드의 EKS 서비스 내에 서비스를 모두 배포 후 설명을 진행한다.
