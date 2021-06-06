@@ -187,6 +187,8 @@
 ### 비기능 요구사항에 대한 검증
 
 <img width="374" alt="비기능적요구사항" src="https://user-images.githubusercontent.com/80744183/119315219-95e4d500-bcb0-11eb-9d37-8621220cc468.png">
+![image](https://user-images.githubusercontent.com/80744192/120918050-617c0a80-c6ed-11eb-91bb-0562dad943c8.png)
+
 
     - 마이크로 서비스를 넘나드는 시나리오에 대한 트랜잭션 처리
         - 수강생 주문시 결제처리:  결제가 완료되지 않은 주문은 절대 받지 않는다는 경영자의 오랜 신념(?) 에 따라, ACID 트랜잭션 적용. 주문와료시 결제처리에 대해서는 Request-Response 방식 처리
