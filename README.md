@@ -181,7 +181,7 @@
 
 ![image](https://user-images.githubusercontent.com/80744192/120917837-5a083180-c6ec-11eb-90c9-3b4467db5a3c.png)
 
-    - 수정된 모델은 모든 요구사항을 커버함.
+    - 강사를 위한 스케쥴관리 기능 추가.
     - 강사용 Mypage 추가 구성.
 
 ### 비기능 요구사항에 대한 검증
