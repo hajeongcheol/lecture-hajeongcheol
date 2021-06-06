@@ -211,7 +211,9 @@
 
 
 ## 헥사고날 아키텍처 다이어그램 도출
-![헥사고날3](https://user-images.githubusercontent.com/80744183/119422472-21f00e80-bd3c-11eb-9aeb-edc9e423a5b0.png)
+
+![image](https://user-images.githubusercontent.com/80744192/120919360-24674680-c6f4-11eb-88b7-87820105e1ad.png)
+
 
 
 
