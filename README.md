@@ -188,7 +188,8 @@
 
 <img width="374" alt="비기능적요구사항" src="https://user-images.githubusercontent.com/80744183/119315219-95e4d500-bcb0-11eb-9d37-8621220cc468.png">
 -
-![image](https://user-images.githubusercontent.com/80744192/120918050-617c0a80-c6ed-11eb-91bb-0562dad943c8.png)
+![image](https://user-images.githubusercontent.com/80744192/120918148-d6e7db00-c6ed-11eb-9bf4-1cbfa6873661.png)
+
 
 
     - 마이크로 서비스를 넘나드는 시나리오에 대한 트랜잭션 처리
