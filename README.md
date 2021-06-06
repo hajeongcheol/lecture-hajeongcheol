@@ -186,8 +186,6 @@
 
 ### 비기능 요구사항에 대한 검증
 
-<img width="374" alt="비기능적요구사항" src="https://user-images.githubusercontent.com/80744183/119315219-95e4d500-bcb0-11eb-9d37-8621220cc468.png">
--
 ![image](https://user-images.githubusercontent.com/80744192/120918148-d6e7db00-c6ed-11eb-9bf4-1cbfa6873661.png)
 
 
