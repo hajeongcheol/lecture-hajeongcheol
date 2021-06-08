@@ -289,7 +289,7 @@ horizontalpodautoscaler.autoscaling/pay     Deployment/pay     0%/30%    1      
 ## DDD 의 적용
 
 - 각 서비스내에 도출된 핵심 Aggregate Root 객체를 Entity 로 선언하였다: 
- (예시는 course 마이크로 서비스). 이때 가능한 중학교 수준의 영어를 사용하려고 노력했다. 
+ (예시는 schedule 마이크로 서비스). 이때 가능한 중학교 수준의 영어를 사용하려고 노력했다. 
 
 ```
 package lecture;
@@ -297,37 +297,74 @@ package lecture;
 import javax.persistence.*;
 import org.springframework.beans.BeanUtils;
 
+import lecture.external.Course;
+import lecture.external.CourseService;
+
 @Entity
-@Table(name = "Course_table")
-public class Course {
+@Table(name = "CourseSchedule_table")
+public class CourseSchedule {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
-    private String name;
+    private Long courseId;
+    private String courseName;
     private String teacher;
-    private Long fee;
-    private String textBook;
+    private Integer studentCount;
+    private Boolean openYn;
+
+    @Transient
+    private Boolean preOpenYn;
+
+    @PostLoad
+    public void onPostLoad() {
+        this.setPreOpenYn(this.getOpenYn());
+    }
 
     @PostPersist
     public void onPostPersist() {
-        CourseRegistered courseRegistered = new CourseRegistered();
-        BeanUtils.copyProperties(this, courseRegistered);
-        courseRegistered.publishAfterCommit();
+        CourseScheduleRegistered courseScheduleRegistered = new CourseScheduleRegistered();
+        BeanUtils.copyProperties(this, courseScheduleRegistered);
+        courseScheduleRegistered.publishAfterCommit();
+    }
+
+    @PreUpdate
+    public void onPreUpdate() {
+        System.out.println(
+                "\n\n##### CourseSchedule onPreUpdate : " + this.getPreOpenYn() + "/" + this.getOpenYn() + "\n\n");
+
+        if (this.getPreOpenYn().booleanValue() != this.getOpenYn().booleanValue()) {
+            Course course = new Course();
+            // mappings goes here
+            course.setOpenYn(this.getOpenYn());
+
+            if (!ScheduleApplication.applicationContext.getBean(CourseService.class).modifyOpenYn(course,
+                    this.getCourseId().toString())) {
+                throw new RollbackException("Failed during Course Open");
+            }
+        }
     }
 
     @PostUpdate
     public void onPostUpdate() {
-        CourseModified courseModified = new CourseModified();
-        BeanUtils.copyProperties(this, courseModified);
-        courseModified.publishAfterCommit();
+        CourseScheduleModified courseScheduleModified = new CourseScheduleModified();
+        BeanUtils.copyProperties(this, courseScheduleModified);
+        courseScheduleModified.publishAfterCommit();
     }
 
     @PreRemove
     public void onPreRemove() {
-        CourseDeleted courseDeleted = new CourseDeleted();
-        BeanUtils.copyProperties(this, courseDeleted);
-        courseDeleted.publishAfterCommit();
+        CourseScheduleDeleted courseScheduleDeleted = new CourseScheduleDeleted();
+        BeanUtils.copyProperties(this, courseScheduleDeleted);
+        courseScheduleDeleted.publishAfterCommit();
+    }
+
+    public Boolean getPreOpenYn() {
+        return preOpenYn;
+    }
+
+    public void setPreOpenYn(Boolean preOpenYn) {
+        this.preOpenYn = preOpenYn;
     }
 
     public Long getId() {
@@ -338,12 +375,20 @@ public class Course {
         this.id = id;
     }
 
-    public String getName() {
-        return name;
+    public Long getCourseId() {
+        return courseId;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setCourseId(Long courseId) {
+        this.courseId = courseId;
+    }
+
+    public String getCourseName() {
+        return courseName;
+    }
+
+    public void setCourseName(String courseName) {
+        this.courseName = courseName;
     }
 
     public String getTeacher() {
@@ -354,23 +399,23 @@ public class Course {
         this.teacher = teacher;
     }
 
-    public String getTextBook() {
-        return textBook;
+    public Integer getStudentCount() {
+        return studentCount;
     }
 
-    public void setTextBook(String textBook) {
-        this.textBook = textBook;
+    public void setStudentCount(Integer studentCount) {
+        this.studentCount = studentCount;
     }
 
-    public Long getFee() {
-        return fee;
+    public Boolean getOpenYn() {
+        return openYn;
     }
 
-    public void setFee(Long fee) {
-        this.fee = fee;
+    public void setOpenYn(Boolean openYn) {
+        this.openYn = openYn;
     }
-
 }
+
 ```
 - Entity Pattern 과 Repository Pattern 을 적용하여 JPA 를 통하여 다양한 데이터소스 유형 (RDB or NoSQL) 에 대한 별도의 처리가 없도록 데이터 접근 어댑터를 자동 생성하기 위하여 Spring Data REST 의 RestRepository 를 적용하였다
 ```
