@@ -538,7 +538,7 @@ replicaset.apps/mysql-7b794c7595   1         1         1       147m
 NAME                          STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
 persistentvolumeclaim/mysql   Bound    pvc-37f946de-9321-43d7-b935-ffe6c6125587   8Gi        RWO            gp2            147m
 ```
-mysql client 에서 테스트한 데이터 확인
+- mysql client 에서 테스트한 데이터 확인
 ```
 root@ubuntu:/# mysql -h mysql.mysql.svc.cluster.local -p
 Enter password: 
@@ -611,7 +611,7 @@ for message in consumer:
 
 ```
 
-파이선 애플리케이션을 컴파일하고 실행하기 위한 도커파일은 아래와 같다 
+- 파이선 애플리케이션을 컴파일하고 실행하기 위한 도커파일은 아래와 같다 
 
 ```
 FROM python:3.6.13-slim
