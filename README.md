@@ -1772,9 +1772,11 @@ status:
 
 * Jaeger 설치
 - service type : ClusterIP -> LoadBalancer 로 수정
-- Jaeger http://ae3b283c82cb34c0f88f2ca92fc70489-1898513510.ap-northeast-2.elb.amazonaws.com/
-![image](https://user-images.githubusercontent.com/80744192/119419756-ed795400-bd35-11eb-9530-6af13f3bfa5d.png)
+- Jaeger URL : http://aa4f29e4750e6457e8ea0a652d092937-1251552130.eu-central-1.elb.amazonaws.com/
+![image](https://user-images.githubusercontent.com/80744192/121380205-a5863e00-c97f-11eb-813c-2e3544ce12d4.png)
 
-- 모니터링 (Grafana) http://http://a17ce955b36c643dba43634c3958f665-1939868886.ap-northeast-2.elb.amazonaws.com:3000/
-![image](https://user-images.githubusercontent.com/80744192/119419299-f1f13d00-bd34-11eb-88ec-6cfce29ca234.png)
+* Prometheus 및 Grafana 설치
+- service type : ClusterIP -> LoadBalancer 로 수정
+- Grafana URL : http://http://a17ce955b36c643dba43634c3958f665-1939868886.ap-northeast-2.elb.amazonaws.com:3000/
+![image](https://user-images.githubusercontent.com/80744192/121380860-31986580-c980-11eb-835c-0edf5ceb7e06.png)
 
