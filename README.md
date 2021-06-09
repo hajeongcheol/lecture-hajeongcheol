@@ -1331,7 +1331,7 @@ kubectl autoscale deploy course --min=1 --max=10 --cpu-percent=30
 ```
 - CB 에서 했던 방식대로 워크로드를 50초 동안 걸어준다. 
 ```
-siege -c50 -t60S -r10 -v --content-type "application/json" -f urls.txtㅈㅁ
+siege -c50 -t60S -r10 -v --content-type "application/json" -f urls.txt
 ```
 - 오토스케일이 어떻게 되고 있는지 모니터링을 걸어둔다:
 ```
