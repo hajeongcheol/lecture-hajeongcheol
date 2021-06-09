@@ -1420,7 +1420,7 @@ Shortest transaction:           0.00
 
 - seige 로 배포작업 직전에 워크로드를 모니터링 함.
 ```
-siege -c100 -t120S -r10 -v --content-type "application/json" 'http://gateway:8080/courses POST {"name": "english", "teacher": "hong", "fee": 10000, "textBook": "eng_book"}'
+siege -c100 -t120S -r10 -v --content-type "application/json" 'http://gateway:8080/courses POST {"name": "english", "teacher": "Jane-Doe", "fee": 10000, "textBook": "eng_book"}'
 
 
 ** SIEGE 4.0.5
@@ -1463,14 +1463,23 @@ Failed transactions:            1123
 Longest transaction:           29.72
 Shortest transaction:           0.00
 ```
-배포 중 Availability 가 평소 100%에서 35% 대로 떨어지는 것을 확인. 원인은 쿠버네티스가 성급하게 새로 올려진 서비스를 READY 상태로 인식하여 서비스 유입을 진행한 것이기 때문. 이를 막기위해 Readiness Probe 를 설정함:
+- 배포 중 Availability 가 평소 100%에서 35% 대로 떨어지는 것을 확인. 원인은 쿠버네티스가 성급하게 새로 올려진 서비스를 READY 상태로 인식하여 서비스 유입을 진행한 것이기 때문. 이를 막기위해 Readiness Probe 를 설정함:
 
 ```
 # deployment.yaml 의 readiness probe 의 설정:
 
+# (schedule) deployment.yaml 파일
+           readinessProbe:
+            httpGet:
+              path: '/courseSchedules'
+              port: 8080
+            initialDelaySeconds: 20
+            timeoutSeconds: 2
+            periodSeconds: 5
+            failureThreshold: 10
+           
 # (course) deployment.yaml 파일
- 
-          readinessProbe:
+           readinessProbe:
             httpGet:
               path: '/courses'
               port: 8080
@@ -1478,14 +1487,6 @@ Shortest transaction:           0.00
             timeoutSeconds: 2
             periodSeconds: 5
             failureThreshold: 10
-          livenessProbe:
-            httpGet:
-              path: '/courses'
-              port: 8080
-            initialDelaySeconds: 180
-            timeoutSeconds: 2
-            periodSeconds: 5
-            failureThreshold: 5
 
 /> kubectl apply -f deployment.yml
 ```
@@ -1509,6 +1510,96 @@ Shortest transaction:           0.00
 ```
 
 배포기간 동안 Availability 가 변화없기 때문에 무정지 재배포가 성공한 것으로 확인됨.
+
+## Self-healing (Liveness Probe)
+
+* mysql DB에 간단 Query를 실행하여 서비스가 정상 동작하는지 확인하고 문제 발생 시 Pod 서비스를 재기동함
+
+- "course_schedule_tablesel" 테이블에 ID가 1인 값이 존재하는 체크
+
+```
+# deployment.yaml 의 liveness probe 의 설정:
+# (schedule) deployment.yaml 파일
+          livenessProbe:
+            httpGet:
+              path: '/courseSchedules/1'
+              port: 8080
+            initialDelaySeconds: 180
+            timeoutSeconds: 2
+            periodSeconds: 5
+            failureThreshold: 5
+```
+- mysql db에서 직접 id가 1인 record 삭제
+
+```
+mysql> select * from course_schedule_table;
++----+-----------+-------------+---------+---------------+---------------+
+| id | course_id | course_name | open_yn | student_count | teacher       |
++----+-----------+-------------+---------+---------------+---------------+
+|  1 |         1 | korean      |         |             0 | Hong-Gil-dong |
+|  2 |         3 | english     |        |             1 | John-Doe      |
+|  3 |         1 | korean      |         |             0 | Hong-Gil-dong |
+|  4 |         2 | korean      |        |             1 | Hong-Gil-dong |
+|  5 |         3 | english     |        |             1 | John-Doe      |
+|  6 |         2 | mathematics |         |             0 | Jane-Doe      |
++----+-----------+-------------+---------+---------------+---------------+
+6 rows in set (0.00 sec)
+
+mysql> delete from course_schedule_table where id = 1;
+Query OK, 1 row affected (0.01 sec)
+```
+
+- schedule POD RESTARTS 수 증가 발생
+```
+NAME                           READY   STATUS    RESTARTS   AGE
+pod/schedule-f9858b878-9hlhs   0/1     Running   1          9m28s
+
+...
+
+# 비정상 동작 CPU 사용률 급증, Auto Scale-out 하였지만 정상 동상 실패
+pod/schedule-f9858b878-9hlhs   0/1     Running             1          10m
+pod/schedule-f9858b878-h6cct   0/1     ContainerCreating   0          0s
+pod/schedule-f9858b878-kj7pt   0/1     ContainerCreating   0          0s
+pod/schedule-f9858b878-s88dc   0/1     ContainerCreating   0          0s
+
+NAME                                           REFERENCE             TARGETS    MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/course     Deployment/course     0%/30%     1         10        1          89m
+horizontalpodautoscaler.autoscaling/schedule   Deployment/schedule   100%/30%   1         10        1          89m
+
+...
+
+# 점차 모든 Pod가 RESTART 하기 시작함
+NAME                           READY   STATUS    RESTARTS   AGE
+pod/schedule-f9858b878-9hlhs   0/1     Running   2          13m
+pod/schedule-f9858b878-h6cct   0/1     Running   1          3m26s
+pod/schedule-f9858b878-kj7pt   1/1     Running   0          3m26s
+pod/schedule-f9858b878-s88dc   0/1     Running   1          3m26s
+```
+- mysql db에서 직접 id가 1인 record 등록
+
+```
+mysql> insert into course_schedule_table (id, course_id, course_name, open_yn, student_count, teacher) values (1, 1, "mathematics", false, 0, "Jane-Doe");
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select * from course_schedule_table;
++----+-----------+-------------+---------+---------------+---------------+
+| id | course_id | course_name | open_yn | student_count | teacher       |
++----+-----------+-------------+---------+---------------+---------------+
+|  1 |         1 | mathematics |         |             0 | Jane-Doe      |
+|  2 |         3 | english     |        |             1 | John-Doe      |
+|  3 |         1 | korean      |         |             0 | Hong-Gil-dong |
+|  4 |         2 | korean      |        |             1 | Hong-Gil-dong |
+|  5 |         3 | english     |        |             1 | John-Doe      |
+|  6 |         2 | mathematics |         |             0 | Jane-Doe      |
++----+-----------+-------------+---------+---------------+---------------+
+6 rows in set (0.00 sec)
+```
+- POD 정상 동작
+```
+NAME                           READY   STATUS    RESTARTS   AGE
+pod/schedule-f9858b878-9hlhs   1/1     Running   2          15m
+pod/schedule-f9858b878-h6cct   1/1     Running   1          5m39s
+```
 
 ## 개발 운영 환경 분리
 * ConfigMap을 사용하여 운영과 개발 환경 분리
