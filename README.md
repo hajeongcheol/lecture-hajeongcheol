@@ -725,7 +725,8 @@ cd ./pay/kubernetes
 kubectl delete -f serivce.yaml
 
 # 강좌 오픈 시도 -> 실패
-root@labs--1801447399:/home/project/team/course/kubernetes# http PATCH http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courseSchedules/4 openYn=true studentCount=1
+http PATCH http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courseSchedules/4 openYn=true studentCount=1
+
 HTTP/1.1 500 Internal Server Error
 Content-Type: application/json;charset=UTF-8
 Date: Wed, 09 Jun 2021 04:53:11 GMT
@@ -743,7 +744,8 @@ transfer-encoding: chunked
 kubectl apply -f serivce.yaml
 
 # 강좌 오픈 시도 -> 성공
-root@labs--1801447399:/home/project/team/course/kubernetes# http PATCH http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courseSchedules/4 openYn=true studentCount=1
+http PATCH http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courseSchedules/4 openYn=true studentCount=1
+
 HTTP/1.1 200 OK
 Content-Type: application/json;charset=UTF-8
 Date: Wed, 09 Jun 2021 05:05:19 GMT
@@ -919,26 +921,111 @@ public class Course {
     }
 ```
 
-- 강좌 관리 시스템은 강사 스케쥴 관리 시스템과 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 유지보수로 인해 잠시 내려간 상태라도 강좌 관리 시스템 사용하는데 문제 없음
+- 강좌 관리 시스템은 강사 스케쥴 관리 시스템과 완전히 분리되어 있어, 이벤트 수신에 따라 처리되기 때문에, 유지보수로 인해 잠시 내려간 상태라도 강좌 관리 시스템 사용하는데 문제 없음
 
 ```
-# 배송 서비스 (course) 를 잠시 내려놓음 
-cd ./course/kubernetes
-kubectl delete -f deployment.yml
+# 강사 스케쥴 관리 (schedule) 를 잠시 내려놓음 
+cd ./schedule/kubernetes
+kubectl delete -f deployment.yaml
 
-# 수강 신청
-http POST http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/classes courseId=1 fee=10000 student=KimSoonHee textBook=eng_book #Success
-http POST http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/classes courseId=1 fee=12000 student=JohnDoe textBook=kor_book #Success
+# 강의 등록 
+http POST  http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courses name=english teacher=John-Doe fee=10000 textBook=eng_book openYn=false
 
-# 수강 신청 상태 확인
-http GET http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/classes   # 수강 신청 완료 
-http GET http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/inquiryMypages  # 배송 상태 "deliveryStatus": null
+HTTP/1.1 201 Created
+Content-Type: application/json;charset=UTF-8
+Date: Wed, 09 Jun 2021 06:45:30 GMT
+Location: http://course:8080/courses/3
+transfer-encoding: chunked
 
-# 배송 서비스 (course) 기동
+{
+    "_links": {
+        "course": {
+            "href": "http://course:8080/courses/3"
+        },
+        "self": {
+            "href": "http://course:8080/courses/3"
+        }
+    },
+    "fee": 10000,
+    "name": "english",
+    "openYn": false,
+    "teacher": "John-Doe",
+    "textBook": "eng_book"
+}
+
+# 수강 신청 (성공) 
+http POST http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/classes courseId=3 fee=10000 student=Ha-Jeong-Cheol textBook=eng_book
+
+HTTP/1.1 201 Created
+Content-Type: application/json;charset=UTF-8
+Date: Wed, 09 Jun 2021 06:52:56 GMT
+Location: http://class:8080/classes/9
+transfer-encoding: chunked
+
+{
+    "_links": {
+        "class": {
+            "href": "http://class:8080/classes/9"
+        },
+        "self": {
+            "href": "http://class:8080/classes/9"
+        }
+    },
+    "courseId": 3,
+    "fee": 10000,
+    "student": "Ha-Jeong-Cheol",
+    "textBook": "eng_book"
+}
+
+# 강좌 확인 및 수강 신청 확인
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courses  # 강좌 등록 정보 확인
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/classes  # 수강 신청 정보 확인
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/mypages  # 강사용 Mypage에 강좌 등록 확인 하지만 강좌가 Open 되지는 않음 ("openYn": false)
+
+...
+            {
+                "_links": {
+                    "mypage": {
+                        "href": "http://mypage:8080/mypages/5"
+                    },
+                    "self": {
+                        "href": "http://mypage:8080/mypages/5"
+                    }
+                },
+                "courseId": 3,
+                "courseName": "english",
+                "fee": 10000,
+                "openYn": false,
+                "studentCount": null,
+                "teacher": "John-Doe",
+                "textBook": "eng_book"
+            }
+...
+
+# 강사 스케쥴 관리 서비스 (schedule) 기동
 kubectl apply -f deployment.yml
 
-# 배송 상태 확인
-http GET http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/inquiryMypages  # 배송 상태 "deliveryStatus": "DELIVERY_START"
+# 강사 스케쥴 관리 상태 확인
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/mypage  # 강사용 Mypage에 강좌 등록 확인 그리고 강좌가 Open 됨 ("openYn": true)
+...
+            {
+                "_links": {
+                    "mypage": {
+                        "href": "http://mypage:8080/mypages/5"
+                    },
+                    "self": {
+                        "href": "http://mypage:8080/mypages/5"
+                    }
+                },
+                "courseId": 3,
+                "courseName": "english",
+                "fee": 10000,
+                "openYn": true,
+                "studentCount": 1,
+                "teacher": "John-Doe",
+                "textBook": "eng_book"
+            }
+...            
 ```
 
 
