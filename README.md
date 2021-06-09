@@ -769,113 +769,157 @@ transfer-encoding: chunked
 
 ## 비동기식 호출 / 시간적 디커플링 / 장애격리 / 최종 (Eventual) 일관성 테스트
 
-
-결제가 이루어진 후에 배송시스템으로 이를 알려주는 행위는 동기식이 아니라 비 동기식으로 처리하여 배송 시스템의 처리를 위하여 결제주문이 블로킹 되지 않아도록 처리한다.
+강의가 등록된 후 강사 스케쥴관리 시스템으로 이를 알려주는 행위는 동기식이 아니라 비 동기식으로 처리하여 강의 스케줄 관리 시스템 문제로 인해 강의 관리가 블로킹 되지 않아도록 처리한다.
  
-- 이를 위하여 결제이력에 기록을 남긴 후에 곧바로 결제승인이 되었다는 도메인 이벤트를 카프카로 송출한다(Publish)
+- 이를 위하여 강의 등록/수정 시 자체 DB에 직접 기록을 남긴 후에 곧바로 강의 등록/수정 내용의 도메인 이벤트를 카프카로 송출한다(Publish)
  
 ```
-package lecture;
-
 @Entity
-@Table(name = "Payment_table")
-public class Payment {
+@Table(name = "Course_table")
+public class Course {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private Long id;
 ...
+
     @PostPersist
     public void onPostPersist() {
-        PaymentApproved paymentApproved = new PaymentApproved();
-        BeanUtils.copyProperties(this, paymentApproved);
-        paymentApproved.publishAfterCommit();
+        CourseRegistered courseRegistered = new CourseRegistered();
+        BeanUtils.copyProperties(this, courseRegistered);
+        courseRegistered.publishAfterCommit();
+    }
+
+    @PostUpdate
+    public void onPostUpdate() {
+        CourseModified courseModified = new CourseModified();
+        BeanUtils.copyProperties(this, courseModified);
+        courseModified.publishAfterCommit();
     }
 ```
-- 배송 서비스에서는 결제승인 이벤트에 대해서 이를 수신하여 자신의 정책을 처리하도록 PolicyHandler 를 구현한다:
+
+- 강의 등록/수정 이벤트에 대해서 이를 수신하여 자신의 정책을 처리하도록 PolicyHandler 를 구현한다:
 
 ```
-package lecture;
+    @StreamListener(KafkaProcessor.INPUT)
+    public void wheneverCourseRegistered_RegisterCourseSchedule(@Payload CourseRegistered courseRegistered) {
 
-...
+        if (!courseRegistered.validate())
+            return;
 
-@Service
-public class PolicyHandler {
+        System.out.println("\n\n##### listener RegisterCourseSchedule : " + courseRegistered.toJson() + "\n\n");
 
-    @Autowired
-    DeliveryRepository deliveryRepository;
+        CourseSchedule courseSchedule = new CourseSchedule();
+        courseSchedule.setCourseId(courseRegistered.getId());
+        courseSchedule.setCourseName(courseRegistered.getName());
+        courseSchedule.setTeacher(courseRegistered.getTeacher());
+        courseSchedule.setStudentCount(0);
+        courseSchedule.setOpenYn(false);
 
-    @Autowired
-    CourseRepository courseRepository;
+        courseScheduleRepository.save(courseSchedule);
+    }
 
     @StreamListener(KafkaProcessor.INPUT)
-    public void wheneverPaymentApproved_DeliveryTextbook(@Payload PaymentApproved paymentApproved) {
+    public void wheneverCourseModified_ModifyCourseSchedule(@Payload CourseModified courseModified) {
 
-        if (paymentApproved.isMe()) {
+        if (!courseModified.validate())
+            return;
 
-            Delivery delivery = new Delivery();
-            delivery.setClassId(paymentApproved.getClassId());
-            delivery.setCourseId(paymentApproved.getCourseId());
-            delivery.setStudent(paymentApproved.getStudent());
-            delivery.setPaymentId(paymentApproved.getId());
-            delivery.setTextBook(paymentApproved.getTextBook());
-            delivery.setStatus("DELIVERY_START");
+        System.out.println("\n\n##### listener ModifyCourseSchedule : " + courseModified.toJson() + "\n\n");
 
-            Optional<Course> opt = courseRepository.findById(paymentApproved.getClassId());
+        List<CourseSchedule> courseScheduleList = courseScheduleRepository.findByCourseId(courseModified.getId());
 
-            Course course;
-            if (opt.isPresent()) {
-                course = opt.get();
-                delivery.setTextBook(course.getTextBook());
-            }
-            deliveryRepository.save(delivery);
+        for (CourseSchedule courseSchedule : courseScheduleList) {
+            courseSchedule.setCourseName(courseModified.getName());
+            courseSchedule.setTeacher(courseModified.getTeacher());
+
+            courseScheduleRepository.save(courseSchedule);
         }
     }
 ```
-실제 구현을 하자면, 학생은 결제완료와 동시에 책 배송 및 수강신청이 완료 되었다는 SMS를 받고, 이후 수강/결제/배송 상태 변경은 Mypage Aggregate 내에서 처리
+- 실제 구현을 하자면, 강사는 강의 등록이 되었다는 SMS를 받을 뿐 아니라 수강생이 수강 신청을 한 경우, 이후 강좌 개설 여부 및 수강생 수와 같은 상태 정보를 Mypage Aggregate 내에서 조회 가능
   
 ```
-    @Autowired
-
     @StreamListener(KafkaProcessor.INPUT)
-    public void whenPaymentApproved_then_CREATE_1(@Payload PaymentApproved paymentApproved) {
+    public void whenCourseRegistered_then_CREATE_1(@Payload CourseRegistered courseRegistered) {
         try {
-            if (paymentApproved.isMe()) {
-                InquiryMypage inquiryMypage = new InquiryMypage();
-                inquiryMypage.setClassId(paymentApproved.getClassId());
-                inquiryMypage.setPaymentId(paymentApproved.getId());
-                inquiryMypage.setCourseId(paymentApproved.getCourseId());
-                inquiryMypage.setFee(paymentApproved.getFee());
-                inquiryMypage.setStudent(paymentApproved.getStudent());
-                inquiryMypage.setPaymentStatus(paymentApproved.getStatus());
-                inquiryMypage.setTextBook(paymentApproved.getTextBook());
-                inquiryMypage.setStatus("CLASS_START");
-				
-                // view 레파지토리에 save
-                inquiryMypageRepository.save(inquiryMypage);
-            }
+
+            if (!courseRegistered.validate())
+                return;
+
+            // view 객체 생성
+            Mypage mypage = new Mypage();
+            // view 객체에 이벤트의 Value 를 set 함
+            mypage.setCourseId(courseRegistered.getId());
+            mypage.setCourseName(courseRegistered.getName());
+            mypage.setTeacher(courseRegistered.getTeacher());
+            mypage.setFee(courseRegistered.getFee());
+            mypage.setOpenYn(false);
+            mypage.setTextBook(courseRegistered.getTextBook());
+            // view 레파지 토리에 save
+            mypageRepository.save(mypage);
+
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-	
-	@StreamListener(KafkaProcessor.INPUT)
-    public void whenTextbookDeliveried_then_UPDATE_2(@Payload TextbookDeliveried textbookDeliveried) {
-        try {
-            if (textbookDeliveried.isMe()) {
-                List<InquiryMypage> inquiryMypageList = inquiryMypageRepository
-                        .findByPaymentId(textbookDeliveried.getPaymentId());
-                for (InquiryMypage inquiryMypage : inquiryMypageList) {
-                    inquiryMypage.setDeliveryStatus(textbookDeliveried.getStatus());
 
-                    // view 레파지 토리에 save
-                    inquiryMypageRepository.save(inquiryMypage);
-                }
+    @StreamListener(KafkaProcessor.INPUT)
+    public void whenCourseModified_then_UPDATE_1(@Payload CourseModified courseModified) {
+        try {
+            if (!courseModified.validate())
+                return;
+            // view 객체 조회
+            List<Mypage> mypageList = mypageRepository.findByCourseId(courseModified.getId());
+            for (Mypage mypage : mypageList) {
+                // view 객체에 이벤트의 eventDirectValue 를 set 함
+                mypage.setCourseName(courseModified.getName());
+                mypage.setTeacher(courseModified.getTeacher());
+                mypage.setFee(courseModified.getFee());
+                mypage.setTextBook(courseModified.getTextBook());
+                // view 레파지 토리에 save
+                mypageRepository.save(mypage);
             }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @StreamListener(KafkaProcessor.INPUT)
+    public void whenCourseScheduleModified_then_UPDATE_2(@Payload CourseScheduleModified courseScheduleModified) {
+        try {
+            if (!courseScheduleModified.validate())
+                return;
+            // view 객체 조회
+            List<Mypage> mypageList = mypageRepository.findByCourseId(courseScheduleModified.getCourseId());
+            for (Mypage mypage : mypageList) {
+                // view 객체에 이벤트의 eventDirectValue 를 set 함
+                mypage.setStudentCount(courseScheduleModified.getStudentCount());
+                mypage.setOpenYn(courseScheduleModified.getOpenYn());
+                // view 레파지 토리에 save
+                mypageRepository.save(mypage);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @StreamListener(KafkaProcessor.INPUT)
+    public void whenCourseDeleted_then_DELETE_1(@Payload CourseDeleted courseDeleted) {
+        try {
+            if (!courseDeleted.validate())
+                return;
+            // view 레파지 토리에 삭제 쿼리
+            mypageRepository.deleteByCourseId(courseDeleted.getId());
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 ```
 
-배송 시스템은 수강신청/결제와 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 배송시스템이 유지보수로 인해 잠시 내려간 상태라도 수강신청을 받는데 문제가 없다:
+- 강좌 관리 시스템은 강사 스케쥴 관리 시스템과 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 유지보수로 인해 잠시 내려간 상태라도 강좌 관리 시스템 사용하는데 문제 없음
 
 ```
 # 배송 서비스 (course) 를 잠시 내려놓음 
