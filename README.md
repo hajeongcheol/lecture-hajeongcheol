@@ -1086,31 +1086,11 @@ http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amaz
 
 
 
-
-### docker images를 수작업 배포/기동
-
-- package & docker image build/push
-
-mvn package
-
-docker build -t 052937454741.dkr.ecr.ap-northeast-2.amazonaws.com/lecture-course:latest .
-
-docker push 052937454741.dkr.ecr.ap-northeast-2.amazonaws.com/lecture-course:latest
-
-- docker 이미지로 Deployment 생성
-
-kubectl create deploy course --image=052937454741.dkr.ecr.ap-northeast-2.amazonaws.com/lecture-course:latest
-
-- expose
-
-kubectl expose deploy course --type=ClusterIP --port=8080
-
-
 ## 동기식 호출 / 서킷 브레이킹 / 장애격리
 
 * 서킷 브레이킹 프레임워크의 선택: Spring FeignClient + Hystrix 옵션을 사용하여 구현함
 
-시나리오는 수강신청(class)-->결제(pay) 시의 연결을 RESTful Request/Response 로 연동하여 구현이 되어있고, 결제 요청이 과도할 경우 CB 를 통하여 장애격리.
+시나리오는 수강신청 시 수강 스케쥴관리에 수강/수강 취소에 따른 강좌 Open/Close 유무 연결을 RESTful Request/Response 로 연동하여 구현이 되어있고, 과도할 경우 CB 를 통하여 장애격리.
 
 - Hystrix 를 설정:  요청처리 쓰레드에서 처리시간이 1000 밀리가 넘어서기 시작하여 어느정도 유지되면 CB 회로가 닫히도록 (요청을 빠르게 실패처리, 차단) 설정
 ```
@@ -1127,102 +1107,265 @@ hystrix:
 
 * 부하테스터 siege 툴을 통한 서킷 브레이커 동작 확인:
 - 동시사용자 50명
-- 30초 동안 실시
+- 60초 동안 실시
 
 ```
-$ siege -c50 -t30S -r10 -v --content-type "application/json" 'http://gateway:8080/classes POST {"courseId": 1, "fee": 10000, "student": "gil-dong", "textBook": "eng_book"}'
+urls.txt 작성
+http://gateway:8080/courseSchedules/1 PATCH {"openYn": true, "studentCount": 1}
+http://gateway:8080/courseSchedules/1 PATCH {"openYn": false, "studentCount": 0}
 
-defaulting to time-based testing: 30 seconds
+root@siege:/# siege -c50 -t60S -r10 -v --content-type "application/json" -f urls.txt
+[error] CONFIG conflict: selected time and repetition based testing
+defaulting to time-based testing: 60 seconds
 ** SIEGE 4.0.4
-** Preparing 10 concurrent users for battle.
+** Preparing 50 concurrent users for battle.
 The server is now under siege...
 
-HTTP/1.1 201     0.68 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.69 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.85 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.80 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.90 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.70 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.20 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.79 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.80 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.71 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.71 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.81 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.10 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.69 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.09 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.80 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     1.38 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.19 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.20 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.80 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.80 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.70 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.70 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.90 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.90 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.71 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.70 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.77 secs:     250 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 201     0.72 secs:     250 bytes ==> POST http://gateway:8080/classes
+HTTP/1.1 200     6.09 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.49 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     6.28 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.40 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.58 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.59 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.59 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.40 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.61 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.50 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.71 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.40 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    12.40 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    21.51 secs:     327 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     6.92 secs:     327 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     0.63 secs:     327 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.62 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.78 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    23.82 secs:     327 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.59 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.59 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.71 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.90 secs:     327 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     1.89 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     1.21 secs:     327 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.81 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     0.58 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     1.56 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     1.51 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
 
-* 요청이 과도하여 CB를 동작함 요청을 차단
+C/B 발생
 
-HTTP/1.1 500     1.31 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     1.51 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     1.42 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     1.52 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     1.51 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     1.71 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     1.99 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     2.60 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     1.70 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     1.70 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     1.72 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     1.91 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     1.68 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     2.10 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     2.80 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     1.82 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     2.08 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     0.38 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     1.60 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     1.90 secs:     221 bytes ==> POST http://gateway:8080/classes
-HTTP/1.1 500     0.49 secs:     221 bytes ==> POST http://gateway:8080/classes
+HTTP/1.1 500     1.01 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.01 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     3.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     3.04 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     7.07 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     7.11 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     3.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     3.04 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     3.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.02 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.02 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.02 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.02 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.02 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.02 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.02 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.02 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.02 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.02 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.03 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.02 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.02 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.03 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.02 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.03 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.02 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.03 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.03 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.03 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.04 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.01 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.01 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     3.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     3.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     3.04 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.00 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.00 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.00 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     3.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     3.04 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     7.07 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     3.04 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.02 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     1.03 secs:     208 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500    30.01 secs:     179 bytes ==> PATCH http://gateway:8080/courseSchedules/1
 
-* 끝까지 500 에러 발생
+C/B 해제됨
 
+HTTP/1.1 200    16.25 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     2.22 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    16.99 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    16.53 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     8.53 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    16.62 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    16.72 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    16.72 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     2.53 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    16.72 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    16.73 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    16.72 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    16.75 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    16.92 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    16.95 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.03 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.01 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.04 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.04 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.01 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.54 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.55 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.72 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.73 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.74 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.74 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.72 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.72 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.84 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.94 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    17.95 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    18.01 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    18.02 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    18.05 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    18.04 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    18.05 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    18.05 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    18.11 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    18.14 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    18.23 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    18.23 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    18.23 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    18.23 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200    18.25 secs:     328 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.10 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.22 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 500     4.10 secs:     239 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.40 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.70 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     6.09 secs:     327 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     6.00 secs:     327 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     4.68 secs:     327 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     6.21 secs:     327 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     4.69 secs:     327 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     6.49 secs:     327 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     6.09 secs:     327 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     6.30 secs:     327 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     6.08 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     9.66 secs:     327 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     6.09 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.91 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.91 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.93 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     6.01 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.30 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     6.00 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     6.09 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.49 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     6.28 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.40 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.58 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.59 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.59 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.40 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.61 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.50 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.71 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+HTTP/1.1 200     5.40 secs:     326 bytes ==> PATCH http://gateway:8080/courseSchedules/1
+...
 
-Lifting the server siege...
-Transactions:                    408 hits
-Availability:                  29.04 %
-Elapsed time:                  29.92 secs
-Data transferred:               0.31 MB
-Response time:                  3.57 secs
-Transaction rate:              13.64 trans/sec
-Throughput:                     0.01 MB/sec
-Concurrency:                   48.67
-Successful transactions:         408
-Failed transactions:             997
-Longest transaction:            4.19
-Shortest transaction:           0.09
+Transactions:                   1023 hits
+Availability:                  49.28 %
+Elapsed time:                   8.55 secs
+Data transferred:               0.56 MB
+Response time:                  0.40 secs
+Transaction rate:             119.65 trans/sec
+Throughput:                     0.07 MB/sec
+Concurrency:                   48.30
+Successful transactions:        1023
+Failed transactions:            1053
+Longest transaction:            0.84
+Shortest transaction:           0.01
 
 ```
-- 운영시스템은 죽지 않고 지속적으로 CB 에 의하여 적절히 회로가 열림과 닫힘이 벌어지면서 자원을 보호하고 있음을 보여줌. 하지만, 29% 가 성공하였고, 71%가 실패했다는 것은 고객 사용성에 있어 좋지 않기 때문에 동적 Scale out (replica의 자동적 추가,HPA) 을 통하여 시스템을 확장 해주는 후속처리가 필요.
+- 운영시스템은 죽지 않고 지속적으로 CB 에 의하여 적절히 회로가 열림과 닫힘이 벌어지면서 자원을 보호하고 있음을 보여줌. 하지만, 49% 가 성공하였고, 51%가 실패했다는 것은 고객 사용성에 있어 좋지 않기 때문에 동적 Scale out (replica의 자동적 추가,HPA) 을 통하여 시스템을 확장 해주는 후속처리가 필요.
 
 ## 오토스케일 아웃
 앞서 CB 는 시스템을 안정되게 운영할 수 있게 해줬지만 사용자의 요청을 100% 받아들여주지 못했기 때문에 이에 대한 보완책으로 자동화된 확장 기능을 적용하고자 한다. 
 
 
-- 수강신청 및 결제서비스에 대한 replica 를 동적으로 늘려주도록 HPA 를 설정한다. 설정은 CPU 사용량이 30프로를 넘어서면 replica 를 10개까지 늘려준다
+- 강좌 관리 및 강자 스케쥴 서비스에 대한 replica 를 동적으로 늘려주도록 HPA 를 설정한다. 설정은 CPU 사용량이 30프로를 넘어서면 replica 를 10개까지 늘려준다
 ```
-kubectl autoscale deploy class --min=1 --max=10 --cpu-percent=30
-kubectl autoscale deploy pay --min=1 --max=10 --cpu-percent=30
+kubectl autoscale deploy schedule --min=1 --max=10 --cpu-percent=30
+kubectl autoscale deploy course --min=1 --max=10 --cpu-percent=30
 ```
-- CB 에서 했던 방식대로 워크로드를 30초 동안 걸어준다. 
+- CB 에서 했던 방식대로 워크로드를 50초 동안 걸어준다. 
 ```
-siege -c50 -t30S -r10 -v --content-type "application/json" 'http://gateway:8080/classes POST {"courseId": 1, "fee": 10000, "student": "gil-dong", "textBook": "eng_book"}'
+siege -c50 -t60S -r10 -v --content-type "application/json" -f urls.txtㅈㅁ
 ```
 - 오토스케일이 어떻게 되고 있는지 모니터링을 걸어둔다:
 ```
@@ -1230,40 +1373,43 @@ watch kubectl get pod,hpa
 ```
 - 어느정도 시간이 흐른 후 (약 30초) 스케일 아웃이 벌어지는 것을 확인할 수 있다:
 ```
-NAME                                        REFERENCE          TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
-horizontalpodautoscaler.autoscaling/class   Deployment/class   69%/30%   1         10        5          6m25s
-horizontalpodautoscaler.autoscaling/pay     Deployment/pay     27%/30%   1         10        4          6m24s
+NAME                                           REFERENCE             TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/course     Deployment/course     8%/30%    1         10        1          41m
+horizontalpodautoscaler.autoscaling/schedule   Deployment/schedule   46%/30%   1         10        10         41m
 
 NAME                           READY   STATUS    RESTARTS   AGE
-pod/alert-7cbc74668-clsdv      2/2     Running   0          43m
-pod/class-5864b4f7cc-bm88m     0/1     Running   0          19s
-pod/class-5864b4f7cc-dbzvz     1/1     Running   0          3m37s
-pod/class-5864b4f7cc-fjscn     0/1     Running   0          34s
-pod/class-5864b4f7cc-jq2sq     0/1     Running   0          34s
-pod/class-5864b4f7cc-rzrz9     1/1     Running   0          13m
-pod/course-64978c8dd8-nwlxs    1/1     Running   0          42m
-pod/gateway-65d7888594-mqpls   1/1     Running   0          41m
-pod/pay-575875fc9-gtkss        1/1     Running   0          2m36s
-pod/pay-575875fc9-h28rg        1/1     Running   0          2m36s
-pod/pay-575875fc9-kk56d        1/1     Running   2          13m
-pod/pay-575875fc9-r2ll2        1/1     Running   0          2m36s
-pod/siege                      1/1     Running   0          5h41m
+pod/alert-7f7dcbb7dd-5tsd9     2/2     Running   0          7h23m
+pod/class-68674c6bf-nqx4l      1/1     Running   0          7h22m
+pod/course-55f66f8d6-ppvnh     1/1     Running   0          42m
+pod/gateway-845cfdd6cd-fqjzj   1/1     Running   0          7h14m
+pod/mypage-577f8b5466-llfs7    1/1     Running   0          7h11m
+pod/pay-7bfdcdff75-c7q2p       1/1     Running   0          7h2m
+pod/schedule-98c86dbc8-2m57c   1/1     Running   0          3m22s
+pod/schedule-98c86dbc8-4c9gv   1/1     Running   0          3m22s
+pod/schedule-98c86dbc8-llcwb   1/1     Running   0          3m7s 
+pod/schedule-98c86dbc8-mkxb6   1/1     Running   0          7m26s
+pod/schedule-98c86dbc8-rf8nx   1/1     Running   0          7m26s
+pod/schedule-98c86dbc8-s5l68   1/1     Running   0          3m22s
+pod/schedule-98c86dbc8-vfqb9   1/1     Running   0          3m22s
+pod/schedule-98c86dbc8-z74c9   1/1     Running   0          7m26s
+pod/schedule-98c86dbc8-zk4dm   1/1     Running   0          3m7s 
+pod/schedule-98c86dbc8-zt886   1/1     Running   2          51m
+pod/siege                      1/1     Running   0          77m
 :
 ```
 - siege 의 로그를 보아도 전체적인 성공률이 높아진 것을 확인 할 수 있다. 
 ```
-Lifting the server siege...
-Transactions:                   1916 hits
-Availability:                  97.21 %
-Elapsed time:                  29.15 secs
-Data transferred:               0.47 MB
-Response time:                  0.74 secs
-Transaction rate:              65.73 trans/sec
-Throughput:                     0.02 MB/sec
-Concurrency:                   48.70
-Successful transactions:        1916
-Failed transactions:              55
-Longest transaction:            8.44
+Transactions:                  27181 hits
+Availability:                 100.00 %
+Elapsed time:                  59.47 secs
+Data transferred:               8.50 MB
+Response time:                  0.11 secs
+Transaction rate:             457.05 trans/sec
+Throughput:                     0.14 MB/sec
+Concurrency:                   49.04
+Successful transactions:       27181
+Failed transactions:               0
+Longest transaction:            0.79
 Shortest transaction:           0.00
 ```
 
