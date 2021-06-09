@@ -1766,9 +1766,11 @@ pod/ubuntu                             1/1     Running   0          3h58m
 status:
   loadBalancer: {}
 ```
+- http://ab836d7c5b3dc470a812f23ee70749ca-356850465.eu-central-1.elb.amazonaws.com:20001/
+
 
 * Jaeger 설치
-
+- service type : ClusterIP -> LoadBalancer 로 수정
 - Tracing (Kiali) http://a4aba4808c91d4027949418f3d13b407-827239036.ap-northeast-2.elb.amazonaws.com:20001/
 ![image](https://user-images.githubusercontent.com/80744192/119357389-79619080-bce2-11eb-88b8-41fceafc8568.png)
 
