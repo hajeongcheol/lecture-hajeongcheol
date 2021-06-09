@@ -1567,15 +1567,15 @@ pod/schedule-f9858b878-9hlhs   1/1     Running   2          15m
 pod/schedule-f9858b878-h6cct   1/1     Running   1          5m39s
 ```
 
-## 개발 운영 환경 분리
+## 개발 운영 환경 분리 및 log파일 영구 보관을 위한 EFS와 연동
 * ConfigMap을 사용하여 운영과 개발 환경 분리
 
-- kafka환경
+- kafka환경 분리
 ```
   운영 : kafka-1621824578.kafka.svc.cluster.local:9092
   개발 : localhost:9092
 ```
-
+- configmap를 활용하여 환경 정보 등록
 ```
 configmap yaml 파일
 
@@ -1585,9 +1585,9 @@ metadata:
   name: kafka-config
 data:
   KAFKA_URL: kafka-1621824578.kafka.svc.cluster.local:9092
-  LOG_FILE: /tmp/debug.log
+  LOG_FILE: /tmp/logs/debug.log
 ```
-
+- deploy 파일를 통해 환경 변수 주입
 ```
 deployment yaml 파일
 
@@ -1605,7 +1605,7 @@ deployment yaml 파일
                 name: kafka-config
                 key: LOG_FILE
 ```
-
+- 프로그램에서 사용
 ```
 프로그램(python) 파일
 
@@ -1622,6 +1622,90 @@ consumer = KafkaConsumer('lecture', bootstrap_servers=[
 
 
 ```
+- 로그 파일 저장을 위해 PersistentVolumeClaim 및 StorageClass 구성
+```
+root@labs--1801447399:/home/project/team/alert/kubernetes# kubectl get pvc,cm,sc
+NAME                            STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+persistentvolumeclaim/aws-efs   Bound    pvc-4586fcaf-7e53-4dfb-9f48-2de397908a9a   1Mi        RWX            aws-efs        16m
+
+NAME                     DATA   AGE
+configmap/kafka-config   2      11h
+
+NAME                                        PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+storageclass.storage.k8s.io/aws-efs         my-aws.com/aws-efs      Delete          Immediate              false                  19m
+storageclass.storage.k8s.io/gp2 (default)   kubernetes.io/aws-ebs   Delete          WaitForFirstConsumer   false                  12h
+```
+- deployment yaml 파일 구성
+```
+  template:
+    metadata:
+      labels:
+        app: alert
+    spec:
+      containers:
+        - name: consumer
+          image: 879772956301.dkr.ecr.eu-central-1.amazonaws.com/user23-consumer:latest
+          volumeMounts:
+          - mountPath: "/tmp/logs"
+            name: volume
+          env:
+          - name: KAFKA_URL
+            valueFrom:
+              configMapKeyRef:
+                name: kafka-config
+                key: KAFKA_URL
+          - name: LOG_FILE
+            valueFrom:
+              configMapKeyRef:
+                name: kafka-config
+                key: LOG_FILE
+        - name: web
+          image: 879772956301.dkr.ecr.eu-central-1.amazonaws.com/user23-web:latest
+          ports:
+            - containerPort: 8084
+          readinessProbe:
+            httpGet:
+              path: '/alert'
+              port: 8084
+            initialDelaySeconds: 10
+            timeoutSeconds: 2
+            periodSeconds: 5
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: '/alert'
+              port: 8084
+            initialDelaySeconds: 120
+            timeoutSeconds: 2
+            periodSeconds: 5
+            failureThreshold: 5
+      volumes:
+        - name: volume
+          persistentVolumeClaim:
+            claimName: aws-efs
+```
+- Container에 접속하여 mount 확인
+```
+root@labs--1801447399:/home/project/team/alert/kubernetes# kubectl exec -it pod/alert-6b5db4674f-7t7gl -c consumer -- /bin/bash
+root@alert-6b5db4674f-7t7gl:/app# df -k
+Filesystem                                                                                          1K-blocks    Used        Available Use% Mounted on
+overlay                                                                                              83873772 3922208         79951564   5% /
+tmpfs                                                                                                   65536       0            65536   0% /dev
+tmpfs                                                                                                 1988928       0          1988928   0% /sys/fs/cgroup
+fs-401bb61b.efs.eu-central-1.amazonaws.com:/aws-efs-pvc-4586fcaf-7e53-4dfb-9f48-2de397908a9a 9007199254739968       0 9007199254739968   0% /tmp/logs
+/dev/nvme0n1p1                                                                                       83873772 3922208         79951564   5% /etc/hosts
+shm                                                                                                     65536       0            65536   0% /dev/shm
+tmpfs                                                                                                 1988928      12          1988916   1% /run/secrets/kubernetes.io/serviceaccount
+tmpfs                                                                                                 1988928       0          1988928   0% /proc/acpi
+tmpfs                                                                                                 1988928       0          1988928   0% /sys/firmware
+root@alert-6b5db4674f-7t7gl:/app# cd /tmp/logs
+root@alert-6b5db4674f-7t7gl:/tmp/logs# cat *
+[2021-06-09 14:13:46,894] KAFKA URL : my-kafka.kafka.svc.cluster.local:9092
+[2021-06-09 14:13:46,894] LOG_FILE : /tmp/logs/debug.log
+root@alert-6b5db4674f-7t7gl:/tmp/logs# 
+```
+
+
 ## 모니터링
 * istio 설치, Kiali 구성, Jaeger 구성, Prometheus 및 Grafana 구성
 
