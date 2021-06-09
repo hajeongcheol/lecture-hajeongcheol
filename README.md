@@ -1005,7 +1005,8 @@ http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amaz
 # 강사 스케쥴 관리 서비스 (schedule) 기동
 kubectl apply -f deployment.yml
 
-# 강사 스케쥴 관리 상태 확인
+# 강사 스케쥴 관리 Update 확인 및 강사 Mypage에서 상태값 확인
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courseSchedules # 정상 Open유무 및 수강생 수 변경 확인
 http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/mypage  # 강사용 Mypage에 강좌 등록 확인 그리고 강좌가 Open 됨 ("openYn": true)
 ...
             {
