@@ -624,41 +624,40 @@ ENTRYPOINT ["python","-u","alert_consumer.py"]
 
 ## 동기식 호출 과 Fallback 처리
 
-분석단계에서의 조건 중 하나로 수강신청(class)->결제(pay) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다. 
+분석단계에서의 조건 중 하나로 강의스케쥴(courseSchedule)->강의(course) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다. 
 
 - 결제서비스를 호출하기 위하여 Stub과 (FeignClient) 를 이용하여 Service 대행 인터페이스 (Proxy) 를 구현 
 
 ```
-# (class) PaymentService.java
+# (schedule) CourseService.java
 
 package lecture.external;
 
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
-@FeignClient(name="pay", url="${api.payment.url}", fallback = PaymentServiceFallback.class)
-public interface PaymentService {
-
-    @RequestMapping(method= RequestMethod.POST, path="/succeedPayment")
-    public boolean pay(@RequestBody Payment payment);
-
+@FeignClient(name = "course", url = "${api.course.url}", fallback = CourseServiceFallback.class)
+public interface CourseService {
+    @RequestMapping(method = RequestMethod.PUT, path = "/modifyOpenYn/{id}")
+    public boolean course(@RequestBody Course course, @PathVariable String id);
 }
 ```
 
 - FallBack 처리
 ```
-# (class) PaymentServiceFallback.java
+# (schedule) CourseServiceFallback.java
 
 package lecture.external;
 
 import org.springframework.stereotype.Component;
 
 @Component
-public class PaymentServiceFallback implements PaymentService {
+public class CourseServiceFallback implements CourseService {
     @Override
-    public boolean pay(Payment payment) {
+    public boolean course(Course course, String id) {
         //do nothing if you want to forgive it
 
         System.out.println("Circuit breaker has been opened. Fallback returned instead.");
@@ -667,51 +666,106 @@ public class PaymentServiceFallback implements PaymentService {
 }
 ```
 
-- 주문을 받은 직후(@PostPersist) 결제를 요청하도록 처리
+- 수강신청등록/취소가 발생할 때마다 학생수를 Count 하다가 학생수가 이 되면 강좌 폐강 또는 학생이 한명이상 이면 강좌 오픈되도록 처리. (@PreUpdate)
 ```
-# Class.java (Entity)
-    @PostPersist
-    public void onPostPersist() throws Exception {
-        Payment payment = new Payment();
-        payment.setClassId(this.getId());
-        payment.setCourseId(this.getCourseId());
-        payment.setFee(this.getFee());
-        payment.setStudent(this.getStudent());
-        payment.setStatus("PAYMENT_COMPLETED");
-        payment.setTextBook(this.getTextBook());
+# (schedule) CourseSchedule.java
+    @PreUpdate
+    public void onPreUpdate() {
+        System.out.println(
+                "\n\n##### CourseSchedule onPreUpdate : " + this.getPreOpenYn() + "/" + this.getOpenYn() + "\n\n");
 
-        if (ClassApplication.applicationContext.getBean(PaymentService.class).pay(payment)) {
-            ClassRegistered classRegistered = new ClassRegistered();
-            BeanUtils.copyProperties(this, classRegistered);
-            classRegistered.publishAfterCommit();
-        }else {
-            throw new RollbackException("Failed during payment");
+        if (this.getPreOpenYn().booleanValue() != this.getOpenYn().booleanValue()) {
+            Course course = new Course();
+            // mappings goes here
+            course.setOpenYn(this.getOpenYn());
+
+            if (!ScheduleApplication.applicationContext.getBean(CourseService.class).course(course,
+                    this.getCourseId().toString())) {
+                throw new RollbackException("Failed during Course Open");
+            }
         }
+    }
+```
+- 강의 Service 에 강의 오픈 유무 Update 
+```
+# (course) CourseController.java
+
+    @PutMapping(value = "/modifyOpenYn/{id}")
+    public boolean modifyOpenYn(@RequestBody Map<String, String> param, @PathVariable String id) {
+        Course course = null;
+        boolean result = false;
+
+        System.out.println("\n\n##### CourseController Parameter openYn : " + id + "\n\n");
+        Optional<Course> opt = courseRepository.findById(Long.parseLong(id));
+
+        try {
+            if (opt.isPresent()) {
+                course = opt.get();
+
+                if (param.get("openYn") != null) {
+                    course.setOpenYn(Boolean.parseBoolean(param.get("openYn")));
+
+                    course = courseRepository.save(course);
+                    result = true;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return result;
     }
 ```
 
 - 동기식 호출에서는 호출 시간에 따른 타임 커플링이 발생하며, 결제 시스템이 장애가 나면 주문도 못받는다는 것을 확인:
 
-
 ```
-# 결제 (pay) 서비스를 잠시 내려놓음
+# 강의 (course) 서비스를 잠시 내려놓음
 cd ./pay/kubernetes
-kubectl delete -f deployment.yml
+kubectl delete -f serivce.yaml
 
-# 수강 신청
-http POST http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/classes courseId=1 fee=10000 student=KimSoonHee textBook=eng_book #Fail
-http POST http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/classes courseId=1 fee=12000 student=JohnDoe textBook=kor_book #Fail
+# 강좌 오픈 시도 -> 실패
+root@labs--1801447399:/home/project/team/course/kubernetes# http PATCH http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courseSchedules/4 openYn=true studentCount=1
+HTTP/1.1 500 Internal Server Error
+Content-Type: application/json;charset=UTF-8
+Date: Wed, 09 Jun 2021 04:53:11 GMT
+transfer-encoding: chunked
 
-# 결제서비스 재기동
-kubectl apply -f deployment.yml
+{
+    "error": "Internal Server Error",
+    "message": "Failed during Course Open; nested exception is javax.persistence.RollbackException: Failed during Course Open",
+    "path": "/courseSchedules/4",
+    "status": 500,
+    "timestamp": "2021-06-09T04:53:11.678+0000"
+}
 
-# 수강 신청
-http POST http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/classes courseId=1 fee=10000 student=KimSoonHee textBook=eng_book #Success
-http POST http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/classes courseId=1 fee=12000 student=JohnDoe textBook=kor_book #Success
+# 강의 (course) 서비스 재기동
+kubectl apply -f serivce.yaml
+
+# 강좌 오픈 시도 -> 성공
+root@labs--1801447399:/home/project/team/course/kubernetes# http PATCH http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courseSchedules/4 openYn=true studentCount=1
+HTTP/1.1 200 OK
+Content-Type: application/json;charset=UTF-8
+Date: Wed, 09 Jun 2021 05:05:19 GMT
+transfer-encoding: chunked
+
+{
+    "_links": {
+        "courseSchedule": {
+            "href": "http://schedule:8080/courseSchedules/4"
+        },
+        "self": {
+            "href": "http://schedule:8080/courseSchedules/4"
+        }
+    },
+    "courseId": 2,
+    "courseName": "korean",
+    "openYn": true,
+    "preOpenYn": false,
+    "studentCount": 1,
+    "teacher": "Hong-Gil-dong"
+}
 ```
-
-- 또한 과도한 요청시에 서비스 장애가 도미노 처럼 벌어질 수 있다. 
-
 
 ## 비동기식 호출 / 시간적 디커플링 / 장애격리 / 최종 (Eventual) 일관성 테스트
 
