@@ -437,57 +437,81 @@ public interface CourseScheduleRepository extends PagingAndSortingRepository<Cou
 - 적용 후 REST API 의 테스트
 
 ```
-# 신규 강좌 등록
-http POST http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/courses name=korean teacher=hong-gil-dong fee=10000 textBook=kor_book
+//강의 등록
+http POST http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courses name=korean teacher=Hong-Gil-dong fee=10000 textBook=kor_book openYn=false
 
-# 등록된 강좌 확인
-http GET http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/courses
+//강의 등록 확인
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courses
 
-# 수강 신청
-http POST http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/classes courseId=1 fee=10000 student=john-doe textBook=kor_book
+//강의 스케쥴 확인
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courseSchedules
 
-# 수강 등록 확인
-http GET http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/classes
+//강의료 수정
+http PATCH http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courses/1 fee=125000
 
-# 결제 성공 확인
-http GET http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/payments
+//강의료 수정 확인
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courses
 
-# 수강 교재 배송 시작 확인
-http GET http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/deliveries
+//My page 확인 (교사용) 강의료 수정 확인
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/mypages
 
-# My page에서 수강신청여부/결제성공여부/배송상태 확인
-http GET http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/inquiryMypages
+//수강 신청
+http POST http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/classes courseId=1 fee=12500 student=Kim-Soon-hee textBook=kor_book
 
-# 수강 취소
-http DELETE http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/classes/1
+//수강 등록 확인
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/classes
 
-# 수강 삭제 확인
-http GET http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/classes
+//결제 확인
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/payments
 
-# 결제 취소 확인 (상태값 "CANCEL" 확인)
-http GET http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/payments
+//강의 스케줄 Open 확인 (Open여부 : true 확인)
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courseSchedules
 
-# 배송 취소 확인 (상태값 "DELIVERY_CANCEL" 확인)
-http GET http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/deliveries
+//강의 Open 확인 (Open여부 : true 확인)
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courses
 
-# My page에서 수강신청여부/결제성공여부/배송상태 확인
-http GET http://aa8ed367406254fc0b4d73ae65aa61cd-24965970.ap-northeast-2.elb.amazonaws.com:8080/inquiryMypages
+//배송 시작 확인
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/deliveries
+
+//수강 취소
+http DELETE http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/classes/1
+
+//수강 취소 확인
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/classes
+
+//강의 스케줄 Close 확인 (Open여부 : false 확인)
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courseSchedules
+
+//강의 Close 확인 (Open여부 : false 확인)
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/courses
+
+//결제 취소 확인 (상태값 "CANCEL" 확인)
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/payments
+
+//배송 취소 확인 (상태값 "DELIVERY_CANCEL" 확인)
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/deliveries
+
+//My page 확인 (학생용)
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/inquiryMypages
+
+//My page 확인 (교사용)
+http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amazonaws.com:8080/mypages
 
 ```
 
 ## 폴리글랏 퍼시스턴스
 
-결제 서비스 (pay) 는 서비스 특성상 Money와 관련된 결제 서비스로 H2 DB 보다는 더욱 안정적인 mysql 을 사용하기로 하였다. 
+결제 서비스 (pay) 및 강사용 스케쥴 서비스 (schedule) 는 서비스 특성상 Money와 관련된 결제 서비스로 H2 DB 보다는 더욱 안정적인 mysql 을 사용하기로 하였다. 
 Spring Cloud JPA를 사용하여 개발하였기 때문에 소스의 변경 부분은 전혀 없으며, 단지 데이터베이스 제품의 설정 (application.yml) 만으로 mysql 에 부착시켰다
 
 ```
-# application.yml
+# application.yml (강사용 스케쥴)
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://mysql-1621689014.mysql.svc.cluster.local:3306/paydb?useSSL=false&characterEncoding=UTF-8&serverTimezone=UTC
+    url: jdbc:mysql://mysql.mysql.svc.cluster.local:3306/scheduledb?useSSL=false&characterEncoding=UTF-8&serverTimezone=UTC
     username: root
-    password: 2pAXUITEjo
+    password: di3UVoNjbc
   jpa:
     database: mysql
     database-platform: org.hibernate.dialect.MySQL5InnoDBDialect
@@ -499,21 +523,63 @@ Spring Cloud JPA를 사용하여 개발하였기 때문에 소스의 변경 부�
 - mysql 서비스 확인 (kubectl get all,pvc -n mysql)
 
 ```
-NAME                                    READY   STATUS    RESTARTS   AGE
-pod/mysql-1621826572-7b6b9d8477-qsjmb   1/1     Running   0          3h44m
+NAME                         READY   STATUS    RESTARTS   AGE
+pod/mysql-7b794c7595-7zfp5   1/1     Running   0          147m
 
-NAME                       TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE
-service/mysql-1621826572   ClusterIP   10.100.64.70   <none>        3306/TCP   8h
+NAME            TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+service/mysql   ClusterIP   10.100.133.120   <none>        3306/TCP   147m
 
-NAME                               READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/mysql-1621826572   1/1     1            1           8h
+NAME                    READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/mysql   1/1     1            1           147m
 
-NAME                                          DESIRED   CURRENT   READY   AGE
-replicaset.apps/mysql-1621826572-7b6b9d8477   1         1         1       8h
+NAME                               DESIRED   CURRENT   READY   AGE
+replicaset.apps/mysql-7b794c7595   1         1         1       147m
 
-NAME                                     STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
-persistentvolumeclaim/mysql-1621826572   Bound    pvc-d746469a-9f39-4177-9f5a-1aee384d6064   8Gi        RWO            gp2            8h
+NAME                          STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+persistentvolumeclaim/mysql   Bound    pvc-37f946de-9321-43d7-b935-ffe6c6125587   8Gi        RWO            gp2            147m
 ```
+mysql client 에서 테스트한 데이터 확인
+```
+root@ubuntu:/# mysql -h mysql.mysql.svc.cluster.local -p
+Enter password: 
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 1840
+Server version: 5.7.30 MySQL Community Server (GPL)
+
+Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> use scheduledb
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+mysql> show tables;
++-----------------------+
+| Tables_in_scheduledb  |
++-----------------------+
+| course_schedule_table |
+| hibernate_sequence    |
++-----------------------+
+2 rows in set (0.00 sec)
+
+mysql> select * from course_schedule_table;
++----+-----------+-------------+---------+---------------+---------------+
+| id | course_id | course_name | open_yn | student_count | teacher       |
++----+-----------+-------------+---------+---------------+---------------+
+|  1 |         1 | korean      |        |             2 | Hong-Gil-dong |
+|  2 |         3 | korean      |         |             0 | Hong-Gil-dong |
++----+-----------+-------------+---------+---------------+---------------+
+2 rows in set (0.00 sec)
+
+mysql> 
+```
+
 
 ## 폴리글랏 프로그래밍
 
