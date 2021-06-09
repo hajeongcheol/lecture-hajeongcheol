@@ -1708,48 +1708,71 @@ root@alert-6b5db4674f-7t7gl:/tmp/logs#
 
 ## 모니터링
 * istio 설치, Kiali 구성, Jaeger 구성, Prometheus 및 Grafana 구성
-
+* istio 설치
 ```
-root@labs-1409824742:/home/project/team# kubectl get all -n istio-system
+root@labs--1801447399:/home/project/team/istio-1.7.1# kubectl get all -n istio-system
 NAME                                        READY   STATUS    RESTARTS   AGE
-pod/grafana-767c5487d6-tccjz                1/1     Running   0          24m
-pod/istio-egressgateway-74f9769788-5z25x    1/1     Running   0          10h
-pod/istio-ingressgateway-74645cb9df-6t4zk   1/1     Running   0          10h
-pod/istiod-756fdd548-rz5fn                  1/1     Running   0          10h
-pod/jaeger-566c547fb9-d9g8l                 1/1     Running   0          13s
-pod/kiali-89fd7f87b-mjtkl                   1/1     Running   0          10h
-pod/prometheus-788c945c9c-ft9wd             2/2     Running   0          10h
+pod/istio-egressgateway-74f9769788-2cgnt    1/1     Running   0          3m55s
+pod/istio-ingressgateway-74645cb9df-v9dlg   1/1     Running   0          3m55s
+pod/istiod-756fdd548-s5vzl                  1/1     Running   0          4m8s
+pod/kiali-79b754f6d-j4n9m                   1/1     Running   0          54s
 
-NAME                           TYPE           CLUSTER-IP       EXTERNAL-IP                                                                    PORT(S)                                                                      AGE
-service/grafana                LoadBalancer   10.100.27.22     a17ce955b36c643dba43634c3958f665-1939868886.ap-northeast-2.elb.amazonaws.com   3000:30186/TCP                                                               24m
-service/istio-egressgateway    ClusterIP      10.100.128.222   <none>                                                                         80/TCP,443/TCP,15443/TCP                                                     10h
-service/istio-ingressgateway   LoadBalancer   10.100.24.155    aac2dd82b25c4416b973f4e43609696a-1789343097.ap-northeast-2.elb.amazonaws.com   15021:31151/TCP,80:30591/TCP,443:31900/TCP,31400:31273/TCP,15443:32249/TCP   10h
-service/istiod                 ClusterIP      10.100.167.39    <none>                                                                         15010/TCP,15012/TCP,443/TCP,15014/TCP,853/TCP                                10h
-service/kiali                  LoadBalancer   10.100.5.19      a4aba4808c91d4027949418f3d13b407-827239036.ap-northeast-2.elb.amazonaws.com    20001:32662/TCP,9090:30625/TCP                                               10h
-service/prometheus             ClusterIP      10.100.32.199    <none>                                                                         9090/TCP                                                                     10h
-service/tracing                LoadBalancer   10.100.15.68     ae3b283c82cb34c0f88f2ca92fc70489-1898513510.ap-northeast-2.elb.amazonaws.com   80:30018/TCP                                                                 13s
-service/zipkin                 ClusterIP      10.100.208.86    <none>                                                                         9411/TCP                                                                     13s
+NAME                           TYPE           CLUSTER-IP       EXTERNAL-IP                                                                 PORT(S)                                                                      AGE
+service/istio-egressgateway    ClusterIP      10.100.229.225   <none>                                                                      80/TCP,443/TCP,15443/TCP                                                     3m54s
+service/istio-ingressgateway   LoadBalancer   10.100.227.165   ab6b31616c6a74e14b50ffdcb19f59e8-599823368.eu-central-1.elb.amazonaws.com   15021:32125/TCP,80:30963/TCP,443:30449/TCP,31400:30620/TCP,15443:31113/TCP   3m54s
+service/istiod                 ClusterIP      10.100.83.38     <none>                                                                      15010/TCP,15012/TCP,443/TCP,15014/TCP,853/TCP                                4m8s
+service/kiali                  ClusterIP      10.100.239.120   <none>                                                                      20001/TCP,9090/TCP                                                           56s
 
 NAME                                   READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/grafana                1/1     1            1           24m
-deployment.apps/istio-egressgateway    1/1     1            1           10h
-deployment.apps/istio-ingressgateway   1/1     1            1           10h
-deployment.apps/istiod                 1/1     1            1           10h
-deployment.apps/jaeger                 1/1     1            1           14s
-deployment.apps/kiali                  1/1     1            1           10h
-deployment.apps/prometheus             1/1     1            1           10h
+deployment.apps/istio-egressgateway    1/1     1            1           3m56s
+deployment.apps/istio-ingressgateway   1/1     1            1           3m56s
+deployment.apps/istiod                 1/1     1            1           4m9s
+deployment.apps/kiali                  1/1     1            1           55s
 
 NAME                                              DESIRED   CURRENT   READY   AGE
-replicaset.apps/grafana-767c5487d6                1         1         1       24m
-replicaset.apps/istio-egressgateway-74f9769788    1         1         1       10h
-replicaset.apps/istio-ingressgateway-74645cb9df   1         1         1       10h
-replicaset.apps/istiod-756fdd548                  1         1         1       10h
-replicaset.apps/jaeger-566c547fb9                 1         1         1       13s
-replicaset.apps/kiali-89fd7f87b                   1         1         1       10h
-replicaset.apps/prometheus-788c945c9c             1         1         1       10h
+replicaset.apps/istio-egressgateway-74f9769788    1         1         1       3m56s
+replicaset.apps/istio-ingressgateway-74645cb9df   1         1         1       3m56s
+replicaset.apps/istiod-756fdd548                  1         1         1       4m9s
+replicaset.apps/kiali-79b754f6d                   1         1         1       55s
 ```
+
+- default namespace istio 활성화
+```
+kubectl label namespace default istio-injection=enabled
+```
+- pod 재기동 (container 수 2 이상 확인)
+```
+root@labs--1801447399:/home/project/team/istio-1.7.1# kubectl get all
+NAME                                   READY   STATUS    RESTARTS   AGE
+pod/alert-6b5db4674f-lqbqz             3/3     Running   1          3m3s
+pod/class-68674c6bf-hl4rn              2/2     Running   0          3m3s
+pod/course-55f66f8d6-659kq             2/2     Running   0          3m2s
+pod/efs-provisioner-6b4d7c8584-g5dkb   1/1     Running   0          41m
+pod/gateway-845cfdd6cd-shlsv           2/2     Running   0          3m2s
+pod/mypage-577f8b5466-48k6m            2/2     Running   0          3m2s
+pod/pay-7bfdcdff75-7mjgg               2/2     Running   0          3m2s
+pod/schedule-f9858b878-mb7rl           2/2     Running   0          3m1s
+pod/siege                              1/1     Running   0          5h55m
+pod/ubuntu                             1/1     Running   0          3h58m
+```
+* Kiali 설치
+- service type : ClusterIP -> LoadBalancer 로 수정
+```
+  selector:
+    app.kubernetes.io/instance: kiali-server
+    app.kubernetes.io/name: kiali
+  sessionAffinity: None
+  type: LoadBalancer
+status:
+  loadBalancer: {}
+```
+
+* Jaeger 설치
+
 - Tracing (Kiali) http://a4aba4808c91d4027949418f3d13b407-827239036.ap-northeast-2.elb.amazonaws.com:20001/
 ![image](https://user-images.githubusercontent.com/80744192/119357389-79619080-bce2-11eb-88b8-41fceafc8568.png)
+
+
 
 - Jaeger http://ae3b283c82cb34c0f88f2ca92fc70489-1898513510.ap-northeast-2.elb.amazonaws.com/
 ![image](https://user-images.githubusercontent.com/80744192/119419756-ed795400-bd35-11eb-9530-6af13f3bfa5d.png)
