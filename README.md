@@ -1735,5 +1735,5 @@ status:
 * Prometheus 및 Grafana 설치
 - service type : ClusterIP -> LoadBalancer 로 수정
 - Grafana URL : http://http://a17ce955b36c643dba43634c3958f665-1939868886.ap-northeast-2.elb.amazonaws.com:3000/
-![image](https://user-images.githubusercontent.com/80744192/121380860-31986580-c980-11eb-835c-0edf5ceb7e06.png)
+![image](https://user-images.githubusercontent.com/80744192/121453266-d85e1f80-c9db-11eb-88ec-75e33bbae74b.png)
 
