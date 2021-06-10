@@ -1365,9 +1365,9 @@ HTTP/1.1 201     1.31 secs:     251 bytes ==> POST http://gateway:8080/courses
 
 ```
 
-- 새버전(v0.1)으로의 배포 시작
+- 새버전(v1.0)으로의 배포 시작
 ```
-kubectl apply -f kubectl apply -f deployment_v0.1.yml
+kubectl apply -f kubectl apply -f deployment_v1.0.yml
 
 ```
 
@@ -1662,7 +1662,6 @@ root@alert-6b5db4674f-7t7gl:/tmp/logs# cat *
 root@alert-6b5db4674f-7t7gl:/tmp/logs# 
 ```
 
-
 ## 모니터링
 * istio 설치, Kiali 구성, Jaeger 구성, Prometheus 및 Grafana 구성
 * istio 설치
@@ -1731,6 +1730,7 @@ status:
 - service type : ClusterIP -> LoadBalancer 로 수정
 - Jaeger URL : http://aa4f29e4750e6457e8ea0a652d092937-1251552130.eu-central-1.elb.amazonaws.com/
 ![image](https://user-images.githubusercontent.com/80744192/121380205-a5863e00-c97f-11eb-813c-2e3544ce12d4.png)
+
 
 * Prometheus 및 Grafana 설치
 - service type : ClusterIP -> LoadBalancer 로 수정
