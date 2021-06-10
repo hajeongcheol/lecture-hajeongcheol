@@ -1039,6 +1039,8 @@ http GET http://ad45ebba654ca4d4993d71580ed82c7f-474668662.eu-central-1.elb.amaz
 * codebuild를 사용하여 pipeline 생성 및 배포
 ![image](https://user-images.githubusercontent.com/80744192/121446820-5ff16180-c9cf-11eb-835a-82fc8e46c8a1.png)
 
+- schedule 서비스 배포 진행 단계
+![image](https://user-images.githubusercontent.com/80744192/121447072-e8700200-c9cf-11eb-9054-6e480d2c1471.png)
 
 
 ## 동기식 호출 / 서킷 브레이킹 / 장애격리
